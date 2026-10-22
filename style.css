@@ -76,14 +76,39 @@ button, input { font: inherit; color: inherit; }
 }
 .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+/* Option switches: only the switch itself toggles (the text next to it is not clickable).
+   Knob slides with a little overshoot, stretches while pressed, track pulses on every change. */
 .switch-row { justify-content: space-between; }
-.switch { position: relative; width: 52px; height: 32px; flex-shrink: 0; }
-.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
-.switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line); pointer-events: none; transition: background-color .15s; }
-.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: var(--card); box-shadow: 0 1px 3px var(--shade-2); transition: transform .15s; }
-.switch input:checked + span { background: var(--rest); }
-.switch input:checked + span::after { transform: translateX(20px); }
-.switch input:focus-visible + span { outline: 3px solid var(--ink); outline-offset: 2px; }
+.opt-label { flex: 1; min-width: 0; font-weight: 600; }
+.switch { position: relative; display: block; width: 58px; height: 34px; flex-shrink: 0; }
+.switch input { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch .sw-track { position: absolute; inset: 0; border-radius: 999px; background: var(--line); pointer-events: none; transition: background-color .25s ease; }
+.switch .sw-track::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; border-radius: 999px;
+  background: var(--card); box-shadow: 0 2px 4px var(--shade-2);
+  transition: transform .38s cubic-bezier(.34, 1.56, .64, 1), width .18s ease;
+}
+.switch input:checked + .sw-track { background: var(--rest); }
+.switch input:checked + .sw-track::after { transform: translateX(24px); }
+.switch input:active + .sw-track::after { width: 34px; }
+.switch input:checked:active + .sw-track::after { transform: translateX(18px); }
+.switch input:focus-visible + .sw-track { outline: 3px solid var(--ink); outline-offset: 3px; }
+.switch .sw-track.pulse { animation: sw-pulse-off .5s ease-out; }
+.switch input:checked + .sw-track.pulse { animation: sw-pulse-on .5s ease-out; }
+@keyframes sw-pulse-on {
+  0% { box-shadow: 0 0 0 0 rgba(51, 209, 122, .55); transform: scale(1); }
+  30% { transform: scale(1.06); }
+  100% { box-shadow: 0 0 0 12px rgba(51, 209, 122, 0); transform: scale(1); }
+}
+@keyframes sw-pulse-off {
+  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, .22); transform: scale(1); }
+  30% { transform: scale(.95); }
+  100% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch .sw-track, .switch .sw-track::after { transition: none; }
+  .switch .sw-track.pulse, .switch input:checked + .sw-track.pulse { animation: none; }
+}
 
 /* Start button lives in its own bar fixed to the bottom; the page reserves room for it,
    so the last rows can always scroll fully above it and nothing is ever covered. */

@@ -435,8 +435,10 @@
   });
   $('optSound').checked = state.sound;
   $('optAwake').checked = state.awake;
-  $('optSound').addEventListener('change', function (e) { state.sound = e.target.checked; save(); if (!state.sound) soundsCancel(); else audioUnlock(); });
-  $('optAwake').addEventListener('change', function (e) { state.awake = e.target.checked; save(); if (state.awake) keepAwake(); else letSleep(); });
+  // Replay the switch pulse on every change.
+  function pulse(input) { var t = input.nextElementSibling; t.classList.remove('pulse'); void t.offsetWidth; t.classList.add('pulse'); }
+  $('optSound').addEventListener('change', function (e) { pulse(e.target); state.sound = e.target.checked; save(); if (!state.sound) soundsCancel(); else audioUnlock(); });
+  $('optAwake').addEventListener('change', function (e) { pulse(e.target); state.awake = e.target.checked; save(); if (state.awake) keepAwake(); else letSleep(); });
 
   $('startBtn').addEventListener('click', function () {
     // Ask for real fullscreen (works on Android and desktop; iPhone ignores it, harmless).
