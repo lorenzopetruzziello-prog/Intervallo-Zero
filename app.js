@@ -193,7 +193,7 @@
   /* ------------------------------ UI ------------------------------ */
   var $ = function (id) { return document.getElementById(id); };
   var el = {
-    setup: $('setup'), run: $('run'), sumTotal: $('sumTotal'), sumInfo: $('sumInfo'), presets: $('presets'),
+    setup: $('setup'), run: $('run'), sumTotal: $('sumTotal'), sumInfo: $('sumInfo'), sumName: $('sumName'),
     phaseName: $('phaseName'), digits: $('digits'), nextUp: $('nextUp'), totRemain: $('totRemain'),
     track: $('track'), statRound: $('statRound'), statCycle: $('statCycle'), playIcon: $('playIcon'), playBtn: $('playBtn')
   };
@@ -234,13 +234,6 @@
       $(f.group).appendChild(row);
     });
   }
-  function buildPresets() {
-    PRESETS.forEach(function (p, i) {
-      var b = document.createElement('button');
-      b.type = 'button'; b.className = 'chip'; b.textContent = p.name; b.dataset.i = i;
-      el.presets.appendChild(b);
-    });
-  }
   function setValue(key, v) {
     var f = fieldByKey(key);
     state.cfg[key] = clampField(f, v);
@@ -264,112 +257,164 @@
     var info = c.rounds + ' round · ' + shortDur(c.work) + ' lavoro' + (c.rest ? ' / ' + shortDur(c.rest) + ' riposo' : '');
     if (c.cycles > 1) info += ' · ' + c.cycles + ' cicli';
     el.sumInfo.textContent = info;
-    Array.prototype.forEach.call(el.presets.children, function (b) {
-      var p = PRESETS[b.dataset.i].cfg;
-      var same = FIELDS.every(function (f) { return p[f.key] === c[f.key]; });
-      b.setAttribute('aria-pressed', same ? 'true' : 'false');
-    });
-    markCurrentSaved();
+    el.sumName.textContent = currentName();
   }
 
-  /* ---- Saved workouts (kept in this phone's storage) ---- */
+  /* ---- Workouts: saved by the user + built-in presets ----
+     Saved workouts live only in this phone's storage (localStorage). */
   function sameCfg(a, b) { return FIELDS.every(function (f) { return a[f.key] === b[f.key]; }); }
+  function byId(id) { return state.saved.filter(function (w) { return w.id === id; })[0] || null; }
   function findByName(name) {
     var n = name.trim().toLowerCase();
-    for (var i = 0; i < state.saved.length; i++) if (state.saved[i].name.trim().toLowerCase() === n) return state.saved[i];
-    return null;
+    return state.saved.filter(function (w) { return w.name.trim().toLowerCase() === n; })[0] || null;
   }
-  function currentSaved() {
-    for (var i = 0; i < state.saved.length; i++) if (sameCfg(state.saved[i].cfg, state.cfg)) return state.saved[i];
-    return null;
+  function currentSaved() { return state.saved.filter(function (w) { return sameCfg(w.cfg, state.cfg); })[0] || null; }
+  function currentPreset() { return PRESETS.filter(function (p) { return sameCfg(p.cfg, state.cfg); })[0] || null; }
+  function currentName() { var s = currentSaved(), p = currentPreset(); return s ? s.name : p ? p.name : 'Personalizzato'; }
+  function meta(c) {
+    return fmt(buildSchedule(c).total / 1000) + ' · ' + c.rounds + ' round · ' + shortDur(c.work) +
+      (c.rest ? ' / ' + shortDur(c.rest) : '') + (c.cycles > 1 ? ' · ' + c.cycles + ' cicli' : '');
   }
-  function savedMeta(c) {
-    var t = buildSchedule(c).total / 1000;
-    return fmt(t) + ' · ' + c.rounds + ' round · ' + shortDur(c.work) + (c.rest ? ' / ' + shortDur(c.rest) : '') + (c.cycles > 1 ? ' · ' + c.cycles + ' cicli' : '');
-  }
-  function esc(s) { return s.replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
-  var TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7zm4 2v8h1.6v-8zm2.4 0v8H14v-8z"/></svg>';
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  var lastLoadedId = null;
+  var ICON_TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7zm4 2v8h1.6v-8zm2.4 0v8H14v-8z"/></svg>';
+  var ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/></svg>';
 
-  function renderSaved() {
-    var list = $('savedList');
-    if (!state.saved.length) {
-      list.innerHTML = '<div class="saved-empty">Nessun allenamento salvato. Imposta tempi e round, poi tocca «Salva questo».</div>';
-      return;
-    }
-    var items = state.saved.slice().sort(function (a, b) { return b.used - a.used; });
-    list.innerHTML = items.map(function (w) {
-      return '<div class="row saved-row" data-id="' + esc(w.id) + '">' +
-        '<button type="button" class="saved-load" data-id="' + esc(w.id) + '">' +
-          '<span class="saved-name">' + esc(w.name) + '</span>' +
-          '<span class="saved-meta">' + savedMeta(w.cfg) + '</span>' +
-        '</button>' +
-        '<button type="button" class="saved-del" data-id="' + esc(w.id) + '" aria-label="Elimina ' + esc(w.name) + '">' + TRASH + '</button>' +
-      '</div>';
-    }).join('');
-    markCurrentSaved();
+  function itemHTML(key, name, cfg, on, deletable) {
+    return '<li class="item">' +
+      '<button type="button" class="item-main" data-load="' + esc(key) + '"' + (on ? ' aria-current="true"' : '') + '>' +
+        '<span class="item-name">' + esc(name) + '</span>' +
+        '<span class="item-meta">' + meta(cfg) + '</span>' +
+      '</button>' +
+      (on ? '<span class="item-on">' + ICON_CHECK + '</span>' : '') +
+      (deletable ? '<button type="button" class="item-del" data-del="' + esc(key.slice(2)) + '" aria-label="Elimina ' + esc(name) + '">' + ICON_TRASH + '</button>' : '') +
+    '</li>';
   }
-  function markCurrentSaved() {
-    var cur = currentSaved();
-    Array.prototype.forEach.call($('savedList').querySelectorAll('.saved-row'), function (r) {
-      if (cur && r.dataset.id === cur.id) r.setAttribute('aria-current', 'true'); else r.removeAttribute('aria-current');
+  function renderLib() {
+    var cs = currentSaved(), cp = cs ? null : currentPreset();
+    var saved = state.saved.slice().sort(function (a, b) { return b.used - a.used; });
+    $('savedList').innerHTML = saved.length
+      ? saved.map(function (w) { return itemHTML('s:' + w.id, w.name, w.cfg, cs && cs.id === w.id, true); }).join('')
+      : '<li class="empty">Nessun allenamento salvato.<br>Imposta tempi e round, poi tocca «Salva».</li>';
+    $('presetList').innerHTML = PRESETS.map(function (p, i) { return itemHTML('p:' + i, p.name, p.cfg, cp === p, false); }).join('');
+  }
+
+  /* ---- Overlays: one manager for sheet, dialog and done screen ----
+     Animated in and out, Esc / backdrop close, focus goes in and comes back. */
+  var layers = [];
+  function reduceMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function openLayer(wrap, focusEl) {
+    layers.push({ wrap: wrap, back: document.activeElement });
+    wrap.hidden = false;
+    document.body.classList.add('locked');
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      wrap.classList.add('open');
+      if (focusEl) focusEl.focus({ preventScroll: true });
+    }); });
+  }
+  function closeLayer(wrap) {
+    var i = -1; layers.forEach(function (l, k) { if (l.wrap === wrap) i = k; });
+    if (i < 0) return;
+    var back = layers[i].back; layers.splice(i, 1);
+    wrap.classList.remove('open');
+    setTimeout(function () { if (!wrap.classList.contains('open')) wrap.hidden = true; }, reduceMotion() ? 0 : 280);
+    if (!layers.length) document.body.classList.remove('locked');
+    if (back && back.focus && document.contains(back)) back.focus({ preventScroll: true });
+  }
+
+  // ask(): one dialog for confirmations and for typing a name.
+  // Resolves with true / the typed text, or null when cancelled.
+  var dlg = null;
+  function ask(o) {
+    return new Promise(function (resolve) {
+      if (dlg) dlg.resolve(null);
+      $('dlgTitle').textContent = o.title;
+      $('dlgText').textContent = o.text || ''; $('dlgText').hidden = !o.text;
+      $('dlgErr').textContent = '';
+      var inp = $('dlgInput'); inp.hidden = !o.input;
+      if (o.input) { inp.value = o.input.value || ''; inp.placeholder = o.input.placeholder || ''; }
+      $('dlgOk').textContent = o.ok || 'OK';
+      $('dlgOk').classList.toggle('danger', !!o.danger);
+      dlg = { resolve: resolve, validate: o.validate, input: !!o.input };
+      openLayer($('dlg'), o.input ? inp : $('dlgCancel'));
     });
   }
-  function say(msg) {
-    var m = $('saveMsg'); m.textContent = msg;
-    clearTimeout(say.t); say.t = setTimeout(function () { m.textContent = ''; }, 3500);
+  function dlgEnd(value) { if (!dlg) return; var d = dlg; dlg = null; closeLayer($('dlg')); d.resolve(value); }
+  function shake(node) { node.classList.remove('shake'); void node.offsetWidth; node.classList.add('shake'); }
+
+  // Confirmation screen: big check that draws itself, then fades away.
+  var doneT = 0;
+  function done(title, sub) {
+    var w = $('done');
+    $('doneTitle').textContent = title; $('doneSub').textContent = sub || '';
+    clearTimeout(doneT);
+    w.classList.remove('open'); w.hidden = false;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { w.classList.add('open'); }); });
+    doneT = setTimeout(function () {
+      w.classList.remove('open');
+      setTimeout(function () { if (!w.classList.contains('open')) w.hidden = true; }, reduceMotion() ? 0 : 260);
+    }, 1300);
   }
-  var lastLoadedId = null;   // the saved workout last opened, to offer "Aggiorna" after tweaks
-  function openSaveForm() {
-    var cur = currentSaved() || state.saved.filter(function (x) { return x.id === lastLoadedId; })[0];
-    $('saveForm').hidden = false; $('saveOpen').hidden = true;
-    $('saveName').value = cur ? cur.name : '';
-    syncSaveLabel();
-    $('saveName').focus();
-  }
-  function closeSaveForm() { $('saveForm').hidden = true; $('saveOpen').hidden = false; }
-  function syncSaveLabel() { $('saveSubmit').textContent = findByName($('saveName').value) ? 'Aggiorna' : 'Salva'; }
-  function saveWorkout(e) {
-    e.preventDefault();
-    var name = $('saveName').value.replace(/\s+/g, ' ').trim();
-    if (!name) { say('Scrivi un nome per salvarlo.'); $('saveName').focus(); return; }
-    var existing = findByName(name);
-    if (existing) {
-      existing.cfg = Object.assign({}, state.cfg); existing.name = name; existing.used = Date.now();
-      say('«' + name + '» aggiornato.');
-    } else {
-      if (state.saved.length >= MAX_SAVED) { say('Hai già ' + MAX_SAVED + ' allenamenti: eliminane uno per salvarne altri.'); return; }
-      state.saved.push({ id: String(Date.now()), name: name, cfg: Object.assign({}, state.cfg), used: Date.now() });
-      say('«' + name + '» salvato.');
-    }
-    save(); renderSaved(); closeSaveForm();
-  }
-  function loadWorkout(id) {
-    var w = state.saved.filter(function (x) { return x.id === id; })[0]; if (!w) return;
-    FIELDS.forEach(function (f) { state.cfg[f.key] = w.cfg[f.key]; $('in-' + f.key).value = w.cfg[f.key]; });
-    w.used = Date.now(); lastLoadedId = w.id;
+
+  /* ---- Workouts: actions ---- */
+  function openLib() { renderLib(); openLayer($('lib'), $('lib').querySelector('.close-btn')); }
+  function closeLib() { closeLayer($('lib')); }
+  function applyCfg(cfg) {
+    FIELDS.forEach(function (f) { state.cfg[f.key] = cfg[f.key]; $('in-' + f.key).value = cfg[f.key]; });
     configChanged();
-    say('Caricato «' + w.name + '».');
   }
-  var pendingDelete = null;
-  function deleteTap(btn) {
-    var id = btn.dataset.id;
-    if (pendingDelete && pendingDelete.id === id) {
-      clearTimeout(pendingDelete.t); pendingDelete = null;
-      var w = state.saved.filter(function (x) { return x.id === id; })[0];
+  function loadKey(key) {
+    if (key.indexOf('p:') === 0) { applyCfg(PRESETS[Number(key.slice(2))].cfg); lastLoadedId = null; }
+    else { var w = byId(key.slice(2)); if (!w) return; applyCfg(w.cfg); w.used = Date.now(); lastLoadedId = w.id; save(); }
+    closeLib();
+  }
+  function saveFlow() {
+    var cur = currentSaved() || byId(lastLoadedId);
+    ask({
+      title: 'Salva allenamento',
+      text: meta(state.cfg),
+      input: { value: cur ? cur.name : '', placeholder: 'Nome, es. Circuito gambe' },
+      ok: 'Salva',
+      validate: function (v) {
+        if (!v) return 'Scrivi un nome.';
+        if (!findByName(v) && state.saved.length >= MAX_SAVED) return 'Hai già ' + MAX_SAVED + ' allenamenti salvati: eliminane uno.';
+        return '';
+      }
+    }).then(function (name) {
+      if (!name) return null;
+      var existing = findByName(name);
+      if (!existing) {
+        var w = { id: String(Date.now()), name: name, cfg: Object.assign({}, state.cfg), used: Date.now() };
+        state.saved.push(w); lastLoadedId = w.id;
+        return ['Salvato', name];
+      }
+      if (sameCfg(existing.cfg, state.cfg)) { existing.used = Date.now(); lastLoadedId = existing.id; return ['Già salvato', existing.name]; }
+      return ask({
+        title: 'Sostituire «' + existing.name + '»?',
+        text: 'Attuale: ' + meta(existing.cfg) + '\nNuovo: ' + meta(state.cfg),
+        ok: 'Sostituisci'
+      }).then(function (yes) {
+        if (!yes) return null;
+        existing.cfg = Object.assign({}, state.cfg); existing.name = name; existing.used = Date.now(); lastLoadedId = existing.id;
+        return ['Aggiornato', name];
+      });
+    }).then(function (r) {
+      if (!r) return;
+      save(); paintSummary(); done(r[0], r[1]);
+    });
+  }
+  function deleteFlow(id) {
+    var w = byId(id); if (!w) return;
+    ask({
+      title: 'Eliminare «' + w.name + '»?',
+      text: 'Verrà cancellato da questo telefono e non si potrà recuperare.',
+      ok: 'Elimina', danger: true
+    }).then(function (yes) {
+      if (!yes) return;
       state.saved = state.saved.filter(function (x) { return x.id !== id; });
-      save(); renderSaved();
-      if (w) say('«' + w.name + '» eliminato.');
-      return;
-    }
-    if (pendingDelete) resetDelete();
-    btn.classList.add('confirm'); btn.textContent = 'Elimina';
-    pendingDelete = { id: id, btn: btn, t: setTimeout(resetDelete, 3000) };
-  }
-  function resetDelete() {
-    if (!pendingDelete) return;
-    clearTimeout(pendingDelete.t);
-    var b = pendingDelete.btn; b.classList.remove('confirm'); b.innerHTML = TRASH;
-    pendingDelete = null;
+      if (lastLoadedId === id) lastLoadedId = null;
+      save(); renderLib(); paintSummary(); done('Eliminato', w.name);
+    });
   }
 
   // Steppers: tap = one step, hold = repeat faster.
@@ -534,27 +579,35 @@
   /* ---- Wiring ---- */
   load();
   plan = buildSchedule(state.cfg);
-  buildRows(); buildPresets();
+  buildRows();
   wireSteppers($('rowsTime')); wireSteppers($('rowsReps'));
-  renderSaved();
   paintSummary();
   // Ask the browser not to clear our storage when space runs low (honoured on Android/Chrome).
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
 
-  $('saveOpen').addEventListener('click', openSaveForm);
-  $('saveCancel').addEventListener('click', closeSaveForm);
-  $('saveForm').addEventListener('submit', saveWorkout);
-  $('saveName').addEventListener('input', syncSaveLabel);
-  $('savedList').addEventListener('click', function (e) {
-    var del = e.target.closest('.saved-del'); if (del) { deleteTap(del); return; }
-    var ld = e.target.closest('.saved-load'); if (ld) { resetDelete(); loadWorkout(ld.dataset.id); }
+  $('openLib').addEventListener('click', openLib);
+  $('saveBtn').addEventListener('click', saveFlow);
+  $('lib').addEventListener('click', function (e) {
+    if (e.target.closest('[data-close]')) { closeLib(); return; }
+    var d = e.target.closest('[data-del]'); if (d) { deleteFlow(d.dataset.del); return; }
+    var l = e.target.closest('[data-load]'); if (l) loadKey(l.dataset.load);
   });
-
-  el.presets.addEventListener('click', function (e) {
-    var b = e.target.closest('.chip'); if (!b) return;
-    var p = PRESETS[b.dataset.i].cfg;
-    FIELDS.forEach(function (f) { state.cfg[f.key] = p[f.key]; $('in-' + f.key).value = p[f.key]; });
-    configChanged();
+  $('dlgForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!dlg) return;
+    var v = dlg.input ? $('dlgInput').value.replace(/\s+/g, ' ').trim() : true;
+    var err = dlg.validate ? dlg.validate(v) : '';
+    if (err) { $('dlgErr').textContent = err; $('dlgInput').focus(); shake($('dlgForm')); return; }
+    dlgEnd(v);
+  });
+  $('dlgCancel').addEventListener('click', function () { dlgEnd(null); });
+  $('dlg').addEventListener('click', function (e) { if (e.target.classList.contains('backdrop')) dlgEnd(null); });
+  $('dlgInput').addEventListener('input', function () { $('dlgErr').textContent = ''; });
+  $('done').addEventListener('click', function () { clearTimeout(doneT); $('done').classList.remove('open'); $('done').hidden = true; });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !layers.length) return;
+    var top = layers[layers.length - 1].wrap;
+    if (top.id === 'dlg') dlgEnd(null); else closeLib();
   });
   $('optSound').checked = state.sound;
   $('optAwake').checked = state.awake;
