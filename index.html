@@ -31,6 +31,21 @@
     <p id="sumInfo">8 round · 20s lavoro / 10s riposo</p>
   </section>
 
+  <section class="group" aria-labelledby="savedTitle">
+    <div class="group-head">
+      <span class="label" id="savedTitle">I miei allenamenti</span>
+      <button type="button" class="pill-btn" id="saveOpen">+ Salva questo</button>
+    </div>
+    <form class="save-form" id="saveForm" hidden>
+      <label class="sr" for="saveName">Nome allenamento</label>
+      <input id="saveName" type="text" maxlength="40" placeholder="Nome, es. Circuito gambe" autocomplete="off" enterkeyhint="done">
+      <button type="submit" class="btn-dark" id="saveSubmit">Salva</button>
+      <button type="button" class="btn-plain" id="saveCancel">Annulla</button>
+    </form>
+    <p class="save-msg" id="saveMsg" aria-live="polite"></p>
+    <div class="rows" id="savedList"></div>
+  </section>
+
   <div class="presets" id="presets" role="group" aria-label="Allenamenti predefiniti"></div>
 
   <section class="group">

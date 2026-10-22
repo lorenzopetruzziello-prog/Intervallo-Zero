@@ -14,6 +14,7 @@
   --done: #D9DDE2;
   --shade: rgba(0, 0, 0, 0.10);
   --shade-2: rgba(0, 0, 0, 0.20);
+  --sel: rgba(255, 194, 26, 0.28);
   --ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --num: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
 }
@@ -75,6 +76,28 @@ button, input { font: inherit; color: inherit; }
   -moz-appearance: textfield;
 }
 .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Saved workouts */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-left: 6px; }
+.pill-btn { height: 36px; padding-inline: 14px; border: 0; border-radius: 999px; background: var(--ink); color: var(--card); font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.save-form { display: flex; flex-wrap: wrap; gap: 8px; background: var(--card); border-radius: 20px; padding: 10px; }
+.save-form input { flex: 1 1 180px; min-width: 0; height: 48px; padding-inline: 14px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--bg); font-weight: 600; }
+.save-form input:focus { border-color: var(--ink); outline: none; }
+.btn-dark, .btn-plain { height: 48px; padding-inline: 16px; border: 0; border-radius: 14px; font-weight: 700; cursor: pointer; }
+.btn-dark { background: var(--ink); color: var(--card); }
+.btn-plain { background: var(--bg); }
+.save-msg { margin: 0; padding-left: 6px; font-weight: 600; }
+.save-msg:empty { display: none; }
+.saved-row { padding: 0 8px 0 0; gap: 4px; }
+.saved-row[aria-current="true"] { background: var(--sel); }
+.saved-load { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 8px 10px 16px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.saved-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 1.05rem; }
+.saved-meta { font-size: 0.9rem; font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.saved-del { height: 44px; min-width: 44px; padding-inline: 10px; border: 0; border-radius: 12px; background: transparent; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; font-weight: 700; }
+.saved-del svg { width: 20px; height: 20px; fill: currentColor; }
+.saved-del.confirm { background: var(--work); }
+.saved-empty { padding: 16px; color: var(--ink-2); font-weight: 500; }
 
 /* Option switches: only the switch itself toggles (the text next to it is not clickable).
    Knob slides with a little overshoot, stretches while pressed, track pulses on every change. */

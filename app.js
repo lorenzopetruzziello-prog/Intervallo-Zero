@@ -30,8 +30,10 @@
   var state = {
     cfg: Object.assign({}, PRESETS[0].cfg),
     sound: true,
-    awake: true
+    awake: true,
+    saved: []          // [{ id, name, cfg, used }] — the user's named workouts
   };
+  var MAX_SAVED = 50;
 
   function fieldByKey(k) { for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i].key === k) return FIELDS[i]; }
   function clampField(f, v) { v = Math.round(Number(v)); if (!isFinite(v)) v = f.min; return Math.min(f.max, Math.max(f.min, v)); }
@@ -43,6 +45,13 @@
       if (s.cfg) FIELDS.forEach(function (f) { if (s.cfg[f.key] != null) state.cfg[f.key] = clampField(f, s.cfg[f.key]); });
       if (typeof s.sound === 'boolean') state.sound = s.sound;
       if (typeof s.awake === 'boolean') state.awake = s.awake;
+      if (Array.isArray(s.saved)) {
+        state.saved = s.saved.filter(function (w) { return w && typeof w.name === 'string' && w.cfg; }).slice(0, MAX_SAVED).map(function (w) {
+          var cfg = {};
+          FIELDS.forEach(function (f) { cfg[f.key] = clampField(f, w.cfg[f.key] != null ? w.cfg[f.key] : PRESETS[0].cfg[f.key]); });
+          return { id: String(w.id || Date.now() + Math.random()), name: w.name.slice(0, 40), cfg: cfg, used: Number(w.used) || 0 };
+        });
+      }
     } catch (e) {}
   }
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
@@ -260,6 +269,107 @@
       var same = FIELDS.every(function (f) { return p[f.key] === c[f.key]; });
       b.setAttribute('aria-pressed', same ? 'true' : 'false');
     });
+    markCurrentSaved();
+  }
+
+  /* ---- Saved workouts (kept in this phone's storage) ---- */
+  function sameCfg(a, b) { return FIELDS.every(function (f) { return a[f.key] === b[f.key]; }); }
+  function findByName(name) {
+    var n = name.trim().toLowerCase();
+    for (var i = 0; i < state.saved.length; i++) if (state.saved[i].name.trim().toLowerCase() === n) return state.saved[i];
+    return null;
+  }
+  function currentSaved() {
+    for (var i = 0; i < state.saved.length; i++) if (sameCfg(state.saved[i].cfg, state.cfg)) return state.saved[i];
+    return null;
+  }
+  function savedMeta(c) {
+    var t = buildSchedule(c).total / 1000;
+    return fmt(t) + ' · ' + c.rounds + ' round · ' + shortDur(c.work) + (c.rest ? ' / ' + shortDur(c.rest) : '') + (c.cycles > 1 ? ' · ' + c.cycles + ' cicli' : '');
+  }
+  function esc(s) { return s.replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  var TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7zm4 2v8h1.6v-8zm2.4 0v8H14v-8z"/></svg>';
+
+  function renderSaved() {
+    var list = $('savedList');
+    if (!state.saved.length) {
+      list.innerHTML = '<div class="saved-empty">Nessun allenamento salvato. Imposta tempi e round, poi tocca «Salva questo».</div>';
+      return;
+    }
+    var items = state.saved.slice().sort(function (a, b) { return b.used - a.used; });
+    list.innerHTML = items.map(function (w) {
+      return '<div class="row saved-row" data-id="' + esc(w.id) + '">' +
+        '<button type="button" class="saved-load" data-id="' + esc(w.id) + '">' +
+          '<span class="saved-name">' + esc(w.name) + '</span>' +
+          '<span class="saved-meta">' + savedMeta(w.cfg) + '</span>' +
+        '</button>' +
+        '<button type="button" class="saved-del" data-id="' + esc(w.id) + '" aria-label="Elimina ' + esc(w.name) + '">' + TRASH + '</button>' +
+      '</div>';
+    }).join('');
+    markCurrentSaved();
+  }
+  function markCurrentSaved() {
+    var cur = currentSaved();
+    Array.prototype.forEach.call($('savedList').querySelectorAll('.saved-row'), function (r) {
+      if (cur && r.dataset.id === cur.id) r.setAttribute('aria-current', 'true'); else r.removeAttribute('aria-current');
+    });
+  }
+  function say(msg) {
+    var m = $('saveMsg'); m.textContent = msg;
+    clearTimeout(say.t); say.t = setTimeout(function () { m.textContent = ''; }, 3500);
+  }
+  var lastLoadedId = null;   // the saved workout last opened, to offer "Aggiorna" after tweaks
+  function openSaveForm() {
+    var cur = currentSaved() || state.saved.filter(function (x) { return x.id === lastLoadedId; })[0];
+    $('saveForm').hidden = false; $('saveOpen').hidden = true;
+    $('saveName').value = cur ? cur.name : '';
+    syncSaveLabel();
+    $('saveName').focus();
+  }
+  function closeSaveForm() { $('saveForm').hidden = true; $('saveOpen').hidden = false; }
+  function syncSaveLabel() { $('saveSubmit').textContent = findByName($('saveName').value) ? 'Aggiorna' : 'Salva'; }
+  function saveWorkout(e) {
+    e.preventDefault();
+    var name = $('saveName').value.replace(/\s+/g, ' ').trim();
+    if (!name) { say('Scrivi un nome per salvarlo.'); $('saveName').focus(); return; }
+    var existing = findByName(name);
+    if (existing) {
+      existing.cfg = Object.assign({}, state.cfg); existing.name = name; existing.used = Date.now();
+      say('«' + name + '» aggiornato.');
+    } else {
+      if (state.saved.length >= MAX_SAVED) { say('Hai già ' + MAX_SAVED + ' allenamenti: eliminane uno per salvarne altri.'); return; }
+      state.saved.push({ id: String(Date.now()), name: name, cfg: Object.assign({}, state.cfg), used: Date.now() });
+      say('«' + name + '» salvato.');
+    }
+    save(); renderSaved(); closeSaveForm();
+  }
+  function loadWorkout(id) {
+    var w = state.saved.filter(function (x) { return x.id === id; })[0]; if (!w) return;
+    FIELDS.forEach(function (f) { state.cfg[f.key] = w.cfg[f.key]; $('in-' + f.key).value = w.cfg[f.key]; });
+    w.used = Date.now(); lastLoadedId = w.id;
+    configChanged();
+    say('Caricato «' + w.name + '».');
+  }
+  var pendingDelete = null;
+  function deleteTap(btn) {
+    var id = btn.dataset.id;
+    if (pendingDelete && pendingDelete.id === id) {
+      clearTimeout(pendingDelete.t); pendingDelete = null;
+      var w = state.saved.filter(function (x) { return x.id === id; })[0];
+      state.saved = state.saved.filter(function (x) { return x.id !== id; });
+      save(); renderSaved();
+      if (w) say('«' + w.name + '» eliminato.');
+      return;
+    }
+    if (pendingDelete) resetDelete();
+    btn.classList.add('confirm'); btn.textContent = 'Elimina';
+    pendingDelete = { id: id, btn: btn, t: setTimeout(resetDelete, 3000) };
+  }
+  function resetDelete() {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.t);
+    var b = pendingDelete.btn; b.classList.remove('confirm'); b.innerHTML = TRASH;
+    pendingDelete = null;
   }
 
   // Steppers: tap = one step, hold = repeat faster.
@@ -406,6 +516,7 @@
     jump(t - p.start > 2000 || i === 0 ? p.start : plan.phases[i - 1].start);
   }
   function openRun() {
+    var cur = currentSaved(); if (cur) { cur.used = Date.now(); save(); }
     plan = buildSchedule(state.cfg);
     clock = { running: false, banked: 0, startedAt: 0 }; finished = false; idx = 0;
     buildTrack();
@@ -425,7 +536,19 @@
   plan = buildSchedule(state.cfg);
   buildRows(); buildPresets();
   wireSteppers($('rowsTime')); wireSteppers($('rowsReps'));
+  renderSaved();
   paintSummary();
+  // Ask the browser not to clear our storage when space runs low (honoured on Android/Chrome).
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
+
+  $('saveOpen').addEventListener('click', openSaveForm);
+  $('saveCancel').addEventListener('click', closeSaveForm);
+  $('saveForm').addEventListener('submit', saveWorkout);
+  $('saveName').addEventListener('input', syncSaveLabel);
+  $('savedList').addEventListener('click', function (e) {
+    var del = e.target.closest('.saved-del'); if (del) { deleteTap(del); return; }
+    var ld = e.target.closest('.saved-load'); if (ld) { resetDelete(); loadWorkout(ld.dataset.id); }
+  });
 
   el.presets.addEventListener('click', function (e) {
     var b = e.target.closest('.chip'); if (!b) return;
