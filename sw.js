@@ -1,6 +1,6 @@
 /* Intervallo Zero service worker: keeps the app working offline.
    Bump VERSION whenever you change a file so phones pick up the new one. */
-const VERSION = 'iz-v4';
+const VERSION = 'iz-v5';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'assets/keep-awake.mp4',
@@ -36,8 +36,10 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+  // cache: 'no-cache' makes the phone check GitHub for a newer file every time
+  // instead of trusting its own 10-minute HTTP cache.
   e.respondWith(
-    fetch(req).then((res) => {
+    fetch(req, { cache: 'no-cache' }).then((res) => {
       const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); return res;
     }).catch(() => caches.match(req).then((hit) => hit || caches.match('index.html')))
   );

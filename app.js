@@ -604,7 +604,22 @@
   });
 
   /* ---- Offline / installable app ---- */
+  // When a new version is published, install it and reload once so the phone
+  // never keeps showing an old copy. Never reloads in the middle of a workout.
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    var hadController = !!navigator.serviceWorker.controller, reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloading) { hadController = true; return; }
+      if (!el.run.hidden) return; // mid-workout: the new version applies next time the app opens
+      reloading = true; location.reload();
+    });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+        reg.update().catch(function () {});
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') reg.update().catch(function () {});
+        });
+      }).catch(function () {});
+    });
   }
 })();
