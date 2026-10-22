@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Intervallo Zero</title>
+<meta name="description" content="Timer a intervalli per HIIT, Tabata e circuiti. Tempo misurato senza deriva.">
+<meta name="theme-color" content="#EDEFF2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Intervallo Zero">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- =================== SETUP SCREEN =================== -->
+<main class="setup" id="setup">
+  <header class="head">
+    <h1>Intervallo Zero</h1>
+  </header>
+
+  <section class="total" aria-label="Riepilogo">
+    <span class="label">Durata totale</span>
+    <b id="sumTotal">04:10</b>
+    <p id="sumInfo">8 round · 20s lavoro / 10s riposo</p>
+  </section>
+
+  <div class="presets" id="presets" role="group" aria-label="Allenamenti predefiniti"></div>
+
+  <section class="group">
+    <span class="label">Tempi (secondi)</span>
+    <div class="rows" id="rowsTime"></div>
+  </section>
+  <section class="group">
+    <span class="label">Ripetizioni</span>
+    <div class="rows" id="rowsReps"></div>
+  </section>
+  <section class="group">
+    <span class="label">Opzioni</span>
+    <div class="rows">
+      <div class="row switch-row"><label for="optSound">Suoni</label><span class="switch"><input type="checkbox" id="optSound" role="switch" checked><span></span></span></div>
+      <div class="row switch-row"><label for="optAwake">Schermo sempre acceso</label><span class="switch"><input type="checkbox" id="optAwake" role="switch" checked><span></span></span></div>
+    </div>
+  </section>
+
+</main>
+<div class="start-bar" id="startBar">
+  <button class="start" id="startBtn" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15L19.5 12z"/></svg>Avvia
+  </button>
+</div>
+
+<!-- =================== RUN SCREEN =================== -->
+<section class="run" id="run" data-phase="prep" hidden aria-label="Allenamento in corso">
+  <div class="run-in">
+    <div class="run-top">
+      <button class="round-btn" id="closeBtn" type="button" aria-label="Termina allenamento">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>
+      </button>
+      <div class="remain"><span class="label">Rimanente</span><b id="totRemain">04:10</b></div>
+    </div>
+
+    <h2 class="phase" id="phaseName">Preparati</h2>
+
+    <div class="clock">
+      <div class="digits" id="digits" role="timer" aria-live="off">00:10</div>
+      <div class="next" id="nextUp">Poi lavoro 20s</div>
+    </div>
+
+    <div class="track" id="track" aria-hidden="true"></div>
+
+    <div class="stats">
+      <div class="stat"><span class="label">Round</span><b id="statRound">0<small>/8</small></b></div>
+      <div class="stat"><span class="label">Ciclo</span><b id="statCycle">1<small>/1</small></b></div>
+    </div>
+
+    <div class="controls">
+      <button class="ctl" id="prevBtn" type="button" aria-label="Fase precedente">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.2v14H6zM19.5 5v14L9.2 12z"/></svg>
+      </button>
+      <button class="ctl main" id="playBtn" type="button" aria-label="Pausa">
+        <svg viewBox="0 0 24 24" aria-hidden="true" id="playIcon"></svg>
+      </button>
+      <button class="ctl" id="nextBtn" type="button" aria-label="Fase successiva">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.8 5H18v14h-2.2zM4.5 5v14l10.3-7z"/></svg>
+      </button>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "Intervallo Zero",
+  "short_name": "Intervallo",
+  "description": "Timer a intervalli per HIIT, Tabata e circuiti. Tempo misurato senza deriva.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#EDEFF2",
+  "theme_color": "#EDEFF2",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
