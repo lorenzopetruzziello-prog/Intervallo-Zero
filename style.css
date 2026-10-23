@@ -242,12 +242,6 @@ body.locked { overflow: hidden; }
 .run[data-phase="rest"] { --phase: var(--rest); }
 .run[data-phase="cycleRest"] { --phase: var(--cycle); }
 .run[data-phase="done"] { --phase: var(--done); }
-/* The app draws the area under the phone's status bar itself (black-translucent):
-   during a workout it is the phase colour, on the setup screen a black strip
-   keeps the white clock and battery readable. */
-.status-shim { position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: var(--ink); z-index: 20; pointer-events: none; }
-.run:not([hidden]) ~ .status-shim { display: none; }
-
 /* No fade between phases: the phone colours its status bar from the page,
    and a fade can leave it stuck on the previous phase colour. */
 
