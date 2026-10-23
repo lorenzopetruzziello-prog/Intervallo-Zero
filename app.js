@@ -471,7 +471,7 @@
       var n = plan.phases[idx + 1];
       next = n ? 'Poi ' + PHASE_NAME[n.type].toLowerCase() + ' ' + shortDur(n.dur / 1000) : 'Ultima fase';
     }
-    if (el.run.dataset.phase !== type) el.run.dataset.phase = type;
+    if (el.run.dataset.phase !== type) { el.run.dataset.phase = type; setBarColor(type); }
     var digits = fmt(Math.ceil(remainMs / 1000));
     paint(el.phaseName, 'phase', PHASE_NAME[type]);
     paint(el.digits, 'digits', digits);
@@ -565,15 +565,30 @@
     plan = buildSchedule(state.cfg);
     clock = { running: false, banked: 0, startedAt: 0 }; finished = false; idx = 0;
     buildTrack();
+    delete el.run.dataset.phase; // force the first render to set the phase and the bar colour
     el.setup.hidden = true; $('startBar').hidden = true; el.run.hidden = false;
     window.scrollTo(0, 0);
     play();
     fitDigits();
   }
+  /* The strip at the top of the phone (clock, battery) is coloured by the phone,
+     not by the page. Tell it the new colour on every phase change, and the
+     setup colour when leaving the workout. */
+  var themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (!themeMeta) { themeMeta = document.createElement('meta'); themeMeta.name = 'theme-color'; document.head.appendChild(themeMeta); }
+  var BAR_VAR = { prep: '--prep', work: '--work', rest: '--rest', cycleRest: '--cycle', done: '--done', setup: '--bg' };
+  function setBarColor(type) {
+    var c = getComputedStyle(document.documentElement).getPropertyValue(BAR_VAR[type] || '--bg').trim();
+    if (!c || themeMeta.getAttribute('content') === c) return;
+    themeMeta.setAttribute('content', c);
+    document.documentElement.style.backgroundColor = type === 'setup' ? '' : c;
+  }
+
   function closeRun() {
     clockStop(); soundsCancel(); loopStop();
     clock = { running: false, banked: 0, startedAt: 0 }; finished = false; idx = 0;
     el.run.hidden = true; el.setup.hidden = false; $('startBar').hidden = false;
+    delete el.run.dataset.phase; setBarColor('setup');
   }
 
   /* ---- Wiring ---- */

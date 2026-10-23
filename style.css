@@ -242,7 +242,8 @@ body.locked { overflow: hidden; }
 .run[data-phase="rest"] { --phase: var(--rest); }
 .run[data-phase="cycleRest"] { --phase: var(--cycle); }
 .run[data-phase="done"] { --phase: var(--done); }
-@media (prefers-reduced-motion: no-preference) { .run { transition: background-color .2s linear; } }
+/* No fade between phases: the phone colours its status bar from the page,
+   and a fade can leave it stuck on the previous phase colour. */
 
 .run-in {
   width: 100%; max-width: 560px; margin-inline: auto; min-height: 0;
