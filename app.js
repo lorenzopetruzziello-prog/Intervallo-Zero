@@ -211,6 +211,16 @@
   }
   function shortDur(sec) { return sec < 60 ? sec + 's' : Math.floor(sec / 60) + ':' + two(sec % 60) + ' min'; }
 
+  // Setup inputs: time fields show plain seconds under a minute, m:ss from 60s up.
+  function isTime(f) { return f.group === 'rowsTime'; }
+  function fieldText(f, v) { return isTime(f) && v >= 60 ? Math.floor(v / 60) + ':' + two(v % 60) : '' + v; }
+  // Accepts "90", "1:30", "1.30" or "1,30" (the phone keypad may only offer . or ,).
+  function parseField(f, text) {
+    text = String(text).trim();
+    var m = isTime(f) && text.match(/^(\d*)[:.,](\d{0,2})$/);
+    return m ? Number(m[1] || 0) * 60 + Number(m[2] || 0) : text;
+  }
+
   var painted = {};
   function paint(node, key, value, asHTML) {
     if (painted[key] === value) return;
@@ -228,7 +238,9 @@
         '<label for="in-' + f.key + '">' + f.label + '</label>' +
         '<div class="stepper">' +
           '<button type="button" data-key="' + f.key + '" data-dir="-1" aria-label="Meno ' + f.label + '">−</button>' +
-          '<input id="in-' + f.key + '" type="number" inputmode="numeric" min="' + f.min + '" max="' + f.max + '" value="' + state.cfg[f.key] + '">' +
+          (isTime(f)
+            ? '<input id="in-' + f.key + '" type="text" inputmode="decimal" autocomplete="off" value="' + fieldText(f, state.cfg[f.key]) + '">'
+            : '<input id="in-' + f.key + '" type="number" inputmode="numeric" min="' + f.min + '" max="' + f.max + '" value="' + state.cfg[f.key] + '">') +
           '<button type="button" data-key="' + f.key + '" data-dir="1" aria-label="Più ' + f.label + '">+</button>' +
         '</div>';
       $(f.group).appendChild(row);
@@ -236,8 +248,8 @@
   }
   function setValue(key, v) {
     var f = fieldByKey(key);
-    state.cfg[key] = clampField(f, v);
-    $('in-' + key).value = state.cfg[key];
+    state.cfg[key] = clampField(f, parseField(f, v));
+    $('in-' + key).value = fieldText(f, state.cfg[key]);
     configChanged();
   }
   function nudge(key, dir) {
@@ -360,7 +372,7 @@
   function openLib() { renderLib(); openLayer($('lib'), $('lib').querySelector('.close-btn')); }
   function closeLib() { closeLayer($('lib')); }
   function applyCfg(cfg) {
-    FIELDS.forEach(function (f) { state.cfg[f.key] = cfg[f.key]; $('in-' + f.key).value = cfg[f.key]; });
+    FIELDS.forEach(function (f) { state.cfg[f.key] = cfg[f.key]; $('in-' + f.key).value = fieldText(f, cfg[f.key]); });
     configChanged();
   }
   function loadKey(key) {
@@ -435,7 +447,7 @@
       if (b && e.detail === 0) nudge(b.dataset.key, Number(b.dataset.dir)); // keyboard activation
     });
     container.addEventListener('change', function (e) {
-      if (e.target.matches('input[type="number"]')) setValue(e.target.id.slice(3), e.target.value);
+      if (e.target.matches('input[id^="in-"]')) setValue(e.target.id.slice(3), e.target.value);
     });
   }
 
