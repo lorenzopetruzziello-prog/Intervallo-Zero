@@ -1,6 +1,6 @@
 /* Intervallo Zero service worker: keeps the app working offline.
    Bump VERSION whenever you change a file so phones pick up the new one. */
-const VERSION = 'iz-v10';
+const VERSION = 'iz-v11';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'assets/keep-awake.mp4',

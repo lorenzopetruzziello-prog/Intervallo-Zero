@@ -10,7 +10,7 @@
 
   var FIELDS = [
     { key: 'prep',      group: 'rowsTime', label: 'Preparazione',     min: 0, max: 120, step: 5, color: '--prep' },
-    { key: 'work',      group: 'rowsTime', label: 'Lavoro',           min: 1, max: 900, step: 5, color: '--work' },
+    { key: 'work',      group: 'rowsTime', label: 'Lavoro',           min: 1, max: 3540, step: 5, color: '--work' },
     { key: 'rest',      group: 'rowsTime', label: 'Riposo',           min: 0, max: 900, step: 5, color: '--rest' },
     { key: 'cycleRest', group: 'rowsTime', label: 'Pausa tra cicli',  min: 0, max: 600, step: 5, color: '--cycle' },
     { key: 'rounds',    group: 'rowsReps', label: 'Round',            min: 1, max: 60,  step: 1 },
@@ -254,7 +254,9 @@
   }
   function nudge(key, dir) {
     var f = fieldByKey(key), cur = state.cfg[key], next;
-    if (f.step > 1) next = dir > 0 ? Math.floor(cur / f.step) * f.step + f.step : Math.ceil(cur / f.step) * f.step - f.step;
+    // Time fields: 5s steps under a minute, 10s steps from one minute up.
+    var s = isTime(f) && (dir > 0 ? cur >= 60 : cur > 60) ? 10 : f.step;
+    if (s > 1) next = dir > 0 ? Math.floor(cur / s) * s + s : Math.ceil(cur / s) * s - s;
     else next = cur + dir;
     setValue(key, next);
   }
